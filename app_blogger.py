@@ -39,19 +39,20 @@ def generate_blogger_html(image_bytes, user_api_key):
     models_to_try = [
         "gemini-1.5-flash",
         "gemini-1.5-pro",
-        "gemini-2.5-flash",
     ]
 
+    last_error = ""
     for model_name in models_to_try:
       try:
         model = genai.GenerativeModel(model_name)
         response = model.generate_content([prompt, image_pil])
         if response and response.text:
           return response.text
-      except Exception:
+      except Exception as err:
+        last_error = str(err)
         continue
 
-    return "Error: Could not generate content with available models."
+    return f"Error: Could not generate content. Details: {last_error}"
   except Exception as e:
     return f"Error: {str(e)}"
 
