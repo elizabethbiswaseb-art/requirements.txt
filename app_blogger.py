@@ -36,8 +36,7 @@ def generate_blogger_html(image_bytes, user_api_key):
         " Blogger post editor."
     )
 
-    # শুধুমাত্র সচল ও লেটেস্ট মডেলগুলো রাখা হলো (pro-vision বাদ দেওয়া হয়েছে)
-   models_to_try = [
+    models_to_try = [
         "gemini-2.5-flash",
         "gemini-2.0-flash",
         "gemini-1.5-flash",
