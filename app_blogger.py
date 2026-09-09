@@ -36,11 +36,10 @@ def generate_blogger_html(image_bytes, user_api_key):
         " Blogger post editor."
     )
 
-    models_to_try = [
+models_to_try = [
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
         "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-flash-001",
     ]
 
     for model_name in models_to_try:
