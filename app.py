@@ -29,7 +29,7 @@ def generate_seo_content(image_bytes, user_api_key):
     image_pil = Image.open(io.BytesIO(image_bytes))
     prompt = (
         "Analyze this image and generate SEO Title, Alt Text, and Description in"
-        " Bengali. Format output clearly with headers."
+        " English. Format output clearly with headers."
     )
 
     # Active model list
