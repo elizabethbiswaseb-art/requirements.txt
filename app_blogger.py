@@ -1,4 +1,5 @@
 import io
+import os
 import google.generativeai as genai
 from PIL import Image
 import streamlit as st
@@ -97,9 +98,9 @@ quality = st.sidebar.slider(
 
 def generate_blogger_html(image_bytes, user_api_key):
   try:
-    # লোকাল জেমিনি কনফিগারেশন যাতে ব্লগার ওআউথের সাথে কনফ্লিক্ট না করে
-    genai_local = genai
-    genai_local.configure(api_key=user_api_key.strip())
+    # ওআউথ টোকেনের সাথে কনফ্লিক্ট এড়াতে এনভায়রনমেন্টে এপিআই কি ফিক্স করে দেওয়া
+    os.environ["GOOGLE_API_KEY"] = user_api_key.strip()
+    genai.configure(api_key=user_api_key.strip())
     
     image_pil = Image.open(io.BytesIO(image_bytes))
 
@@ -110,7 +111,7 @@ def generate_blogger_html(image_bytes, user_api_key):
         " Blogger post editor."
     )
 
-    model = genai_local.GenerativeModel("gemini-3.6-flash")
+    model = genai.GenerativeModel("gemini-3.6-flash")
     response = model.generate_content([prompt, image_pil])
 
     if response and response.text:
