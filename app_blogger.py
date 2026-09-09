@@ -36,18 +36,8 @@ def generate_blogger_html(image_bytes, user_api_key):
         " Blogger post editor."
     )
 
-    # সচল মডেল স্বয়ংক্রিয়ভাবে খুঁজে বের করার কোড
-    available_model = None
-    for m in genai.list_models():
-      if "generateContent" in m.supported_generation_methods:
-        if "flash" in m.name or "pro" in m.name:
-          available_model = m.name
-          break
-
-    if not available_model:
-      available_model = "models/gemini-1.5-flash"
-
-    model = genai.GenerativeModel(available_model)
+    # সরাসরি লেটেস্ট সচল মডেল ব্যবহার করা হলো
+    model = genai.GenerativeModel("gemini-2.0-flash")
     response = model.generate_content([prompt, image_pil])
 
     if response and response.text:
