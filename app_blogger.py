@@ -36,10 +36,14 @@ def generate_blogger_html(image_bytes, user_api_key):
         " Blogger post editor."
     )
 
+    # আপনার মূল working app-এর মডেল লিস্ট হুবহু এখানে ব্যবহার করা হলো
     models_to_try = [
         "gemini-2.5-flash",
         "gemini-2.0-flash",
-        "gemini-1.5-flash",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash-001",
+        "gemini-1.5-flash-002",
+        "gemini-pro-vision",
     ]
 
     last_error = ""
@@ -110,7 +114,6 @@ if uploaded_file is not None:
         " করলেই ডিজাইন সহ সাজানো পোস্ট পেয়ে যাবেন।"
     )
 
-    # Text area to easily copy HTML code
     st.text_area(
         "HTML Code:", value=st.session_state["blogger_html"], height=200
     )
