@@ -57,29 +57,31 @@ def authenticate_blogger():
             }
             st.success("Successfully authenticated with Blogger!")
     except Exception as e:
-    def publish_post(title, content, is_draft=True):
-        if 'blogger_credentials' not in st.session_state:
-            st.warning("Please authenticate first using the authorization link above.")
-            return
+        st.error(f"Auth Error: {e}")
+
+def publish_post(title, content, is_draft=True):
+    if 'blogger_credentials' not in st.session_state:
+        st.warning("Please authenticate first using the authorization link above.")
+        return
+    
+    try:
+        credentials = Credentials(**st.session_state['blogger_credentials'])
+        service = build('blogger', 'v3', credentials=credentials)
         
-        try:
-            credentials = Credentials(**st.session_state['blogger_credentials'])
-            service = build('blogger', 'v3', credentials=credentials)
-            
-            body = {
-                'title': title,
-                'content': content,
-                'isDraft': is_draft
-            }
-            
-            posts = service.posts()
-            posts.insert(blogId=BLOG_ID, body=body, isDraft=is_draft).execute()
-            if is_draft:
-                st.success("Post successfully saved as Draft in Blogger!")
-            else:
-                st.success("Post successfully Published to Blogger!")
-        except Exception as e:
-            st.error(f"Publishing Error: {e}")
+        body = {
+            'title': title,
+            'content': content,
+            'isDraft': is_draft
+        }
+        
+        posts = service.posts()
+        posts.insert(blogId=BLOG_ID, body=body, isDraft=is_draft).execute()
+        if is_draft:
+            st.success("Post successfully saved as Draft in Blogger!")
+        else:
+            st.success("Post successfully Published to Blogger!")
+    except Exception as e:
+        st.error(f"Publishing Error: {e}")
 
 # Sidebar Configuration
 st.sidebar.header("⚙️ কনফিগারেশন")
@@ -89,7 +91,6 @@ quality = st.sidebar.slider(
 
 
 def generate_local_seo_html(file_name):
-  """কোনো এপিআই ঝামেলা ছাড়াই লোকাল লজিক দিয়ে এসইও ফ্রেন্ডলি HTML টেমপ্লেট তৈরি করা"""
   clean_name = file_name.rsplit('.', 1)[0].replace('-', ' ').replace('_', ' ').title()
   
   html_output = f"""
@@ -149,7 +150,7 @@ if uploaded_file is not None:
 
     st.markdown("---")
     st.subheader("✍️ Review, Edit & Publish to Blogger")
-    st.info("এআই বা কন্টেন্টে কোনো পরিবর্তন করতে চাইলে নিচে ম্যানুয়ালি এডিট করে সরাসরি ব্লগে পাবলিশ বা ড্রাফট করতে পারেন:")
+    st.info("কন্টেন্টে কোনো পরিবর্তন করতে চাইলে নিচে ম্যানুয়ালি এডিট করে সরাসরি ব্লগে পাবলিশ বা ড্রাফট করতে পারেন:")
 
     editable_title = st.text_input("Post Title", value=st.session_state.get("default_title", "SEO Optimized Post"))
     editable_content = st.text_area("Post HTML Content (Edit if needed)", value=st.session_state["blogger_html"], height=300)
