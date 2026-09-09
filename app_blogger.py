@@ -24,7 +24,7 @@ try:
     CLIENT_SECRET = st.secrets["CLIENT_SECRET"]
     REDIRECT_URI = st.secrets["REDIRECT_URI"]
 except Exception as e:
-    st.error(f"Streamlit Secrets Error: {e}. অনুগ্রহ করে আপনার Streamlit Cloud ড্যাশবোর্ডের Secrets-এ প্রয়োজনীয় কি-গুলো যুক্ত করুন।")
+    st.error(f"Streamlit Secrets Error: {e}")
     st.stop()
 
 CLIENT_CONFIG = {
@@ -96,13 +96,14 @@ quality = st.sidebar.slider(
 )
 
 
-def generate_blogger_html_rest(image_bytes, user_api_key):
-  """Uses direct Gemini REST API with x-goog-api-key header to completely avoid OAuth token conflicts."""
+def generate_html_pure_rest(image_bytes, user_api_key):
+  """সরাসরি HTTP রিকোয়েস্ট ব্যবহার করে জেমিনি কল করা, যাতে কোনো ওআউথ বা লাইব্রেরি কনফ্লিক্ট না থাকে"""
   try:
     import base64
     encoded_image = base64.b64encode(image_bytes).decode("utf-8")
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={user_api_key.strip()}"
+    # gemini-2.5-flash অথবা gemini-1.5-flash মডেল ব্যবহার করা নিরাপদ
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={user_api_key.strip()}"
     
     headers = {
         "Content-Type": "application/json"
@@ -136,10 +137,9 @@ def generate_blogger_html_rest(image_bytes, user_api_key):
     if response.status_code == 200:
       res_json = response.json()
       try:
-        text_output = res_json["candidates"][0]["content"]["parts"][0]["text"]
-        return text_output
+        return res_json["candidates"][0]["content"]["parts"][0]["text"]
       except (KeyError, IndexError):
-        return "Error: Could not parse response from Gemini API."
+        return f"Error: Invalid response structure: {res_json}"
     else:
       return f"Error ({response.status_code}): {response.text}"
 
@@ -181,7 +181,7 @@ if uploaded_file is not None:
       st.error("দয়া করে সাইডবারে আপনার Gemini API Key বসান!")
     else:
       with st.spinner("ব্লগার উপযোগী এসইও কন্টেন্ট তৈরি হচ্ছে..."):
-        result = generate_blogger_html_rest(webp_bytes, api_key)
+        result = generate_html_pure_rest(webp_bytes, api_key)
         if result.startswith("Error"):
           st.error(result)
         else:
