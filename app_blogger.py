@@ -1,6 +1,6 @@
 import io
-import os
-import google.generativeai as genai
+import json
+import requests
 from PIL import Image
 import streamlit as st
 from google.oauth2.credentials import Credentials
@@ -96,28 +96,52 @@ quality = st.sidebar.slider(
 )
 
 
-def generate_blogger_html(image_bytes, user_api_key):
+def generate_blogger_html_rest(image_bytes, user_api_key):
+  """Uses direct Gemini REST API with x-goog-api-key header to completely avoid OAuth token conflicts."""
   try:
-    # ওআউথ টোকেনের সাথে কনফ্লিক্ট এড়াতে এনভায়রনমেন্টে এপিআই কি ফিক্স করে দেওয়া
-    os.environ["GOOGLE_API_KEY"] = user_api_key.strip()
-    genai.configure(api_key=user_api_key.strip())
+    import base64
+    encoded_image = base64.b64encode(image_bytes).decode("utf-8")
     
-    image_pil = Image.open(io.BytesIO(image_bytes))
-
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={user_api_key.strip()}"
+    
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
     prompt = (
         "Analyze this image and generate an SEO Title, Alt Text, and a detailed"
         " SEO Description in English. Format the output cleanly using HTML tags"
         " like <h2>, <p>, and <strong> so it can be directly pasted into a"
         " Blogger post editor."
     )
-
-    model = genai.GenerativeModel("gemini-3.6-flash")
-    response = model.generate_content([prompt, image_pil])
-
-    if response and response.text:
-      return response.text
+    
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt},
+                    {
+                        "inline_data": {
+                            "mime_type": "image/webp",
+                            "data": encoded_image
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+    
+    response = requests.post(url, headers=headers, data=json.dumps(payload))
+    
+    if response.status_code == 200:
+      res_json = response.json()
+      try:
+        text_output = res_json["candidates"][0]["content"]["parts"][0]["text"]
+        return text_output
+      except (KeyError, IndexError):
+        return "Error: Could not parse response from Gemini API."
     else:
-      return "Error: Empty response from Gemini API."
+      return f"Error ({response.status_code}): {response.text}"
 
   except Exception as e:
     return f"Error: {str(e)}"
@@ -157,7 +181,7 @@ if uploaded_file is not None:
       st.error("দয়া করে সাইডবারে আপনার Gemini API Key বসান!")
     else:
       with st.spinner("ব্লগার উপযোগী এসইও কন্টেন্ট তৈরি হচ্ছে..."):
-        result = generate_blogger_html(webp_bytes, api_key)
+        result = generate_blogger_html_rest(webp_bytes, api_key)
         if result.startswith("Error"):
           st.error(result)
         else:
