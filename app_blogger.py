@@ -20,7 +20,7 @@ api_key = st.sidebar.text_input(
     "Gemini API Key দিন:", value=secret_key, type="password"
 )
 quality = st.sidebar.slider(
-    "WebP কোয়ালিটি (Quality %):", min_value=10, max_value=100, value=80
+    "WebP কোয়ালিটি (Quality %):", min_value=10, max_value=100, value=80
 )
 
 
@@ -36,8 +36,8 @@ def generate_blogger_html(image_bytes, user_api_key):
         " Blogger post editor."
     )
 
-    # সরাসরি লেটেস্ট সচল মডেল ব্যবহার করা হলো
-    model = genai.GenerativeModel("gemini-3.6-flash")
+    # সঠিক ও সচল মডেল ব্যবহার করা হলো
+    model = genai.GenerativeModel("gemini-1.5-flash")
     response = model.generate_content([prompt, image_pil])
 
     if response and response.text:
@@ -80,7 +80,7 @@ if uploaded_file is not None:
 
   if st.button("✨ ব্লগ পোস্টের জন্য HTML কন্টেন্ট তৈরি করুন"):
     if not api_key:
-      st.error("দয়া করে সাইডবারে আপনার Gemini API Key বসান!")
+      st.error("দয়া করে সাইডবারে আপনার Gemini API Key বসান!")
     else:
       with st.spinner("ব্লগার উপযোগী এসইও কন্টেন্ট তৈরি হচ্ছে..."):
         result = generate_blogger_html(webp_bytes, api_key)
@@ -88,7 +88,7 @@ if uploaded_file is not None:
           st.error(result)
         else:
           st.session_state["blogger_html"] = result
-          st.success("সফলভাবে তৈরি হয়েছে!")
+          st.success("সফলভাবে তৈরি হয়েছে!")
 
   if "blogger_html" in st.session_state:
     st.subheader("👁️ প্রিভিউ (Preview):")
@@ -98,7 +98,7 @@ if uploaded_file is not None:
     st.subheader("📋 ব্লগস্পটে ব্যবহারের জন্য HTML কোড:")
     st.info(
         "নিচের কোডটি কপি করে আপনার Blogger পোস্ট এডিটরের **HTML View**-এ পেস্ট"
-        " করলেই ডিজাইন সহ সাজানো পোস্ট পেয়ে যাবেন।"
+        " করলেই ডিজাইন সহ সাজানো পোস্ট পেয়ে যাবেন।"
     )
 
     st.text_area(
