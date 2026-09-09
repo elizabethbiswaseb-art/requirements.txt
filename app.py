@@ -47,23 +47,42 @@ def generate_seo_content(image_bytes, user_api_key):
       }]
   }
 
-  # Passing key via x-goog-api-key header supports both AIzaSy and AQ key formats
-  url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-  headers = {
-      "Content-Type": "application/json",
-      "x-goog-api-key": clean_key,
-  }
+  # List of current active models to prevent 404 errors automatically
+  models_to_try = [
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash-latest",
+      "gemini-1.5-flash",
+  ]
 
-  response = requests.post(url, headers=headers, json=payload)
+  headers = {"Content-Type": "application/json", "x-goog-api-key": clean_key}
 
-  if response.status_code == 200:
-    res_data = response.json()
-    try:
-      return res_data["candidates"][0]["content"]["parts"][0]["text"]
-    except (KeyError, IndexError):
-      return "AI কন্টেন্ট প্রসেস করতে পারেনি।"
-  else:
-    return f"Error {response.status_code}: {response.text}"
+  last_error = ""
+
+  for model in models_to_try:
+    # Try Header Authentication first
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    response = requests.post(url, headers=headers, json=payload)
+
+    # If Header fails, fallback to Query Parameter
+    if response.status_code != 200:
+      url_param = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={clean_key}"
+      response = requests.post(
+          url_param,
+          headers={"Content-Type": "application/json"},
+          json=payload,
+      )
+
+    if response.status_code == 200:
+      res_data = response.json()
+      try:
+        return res_data["candidates"][0]["content"]["parts"][0]["text"]
+      except (KeyError, IndexError):
+        return "AI কন্টেন্ট প্রসেস করতে পারেনি।"
+    else:
+      last_error = f"Error {response.status_code}: {response.text}"
+
+  return last_error
 
 
 # Main Upload Logic
