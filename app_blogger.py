@@ -17,10 +17,14 @@ st.caption(
 )
 
 # --- Blogger API Configuration (Secure via st.secrets) ---
-BLOG_ID = st.secrets["BLOG_ID"]
-CLIENT_ID = st.secrets["CLIENT_ID"]
-CLIENT_SECRET = st.secrets["CLIENT_SECRET"]
-REDIRECT_URI = st.secrets["REDIRECT_URI"]
+try:
+    BLOG_ID = st.secrets["BLOG_ID"]
+    CLIENT_ID = st.secrets["CLIENT_ID"]
+    CLIENT_SECRET = st.secrets["CLIENT_SECRET"]
+    REDIRECT_URI = st.secrets["REDIRECT_URI"]
+except Exception as e:
+    st.error(f"Streamlit Secrets Error: {e}. অনুগ্রহ করে আপনার Streamlit Cloud ড্যাশবোর্ডের Secrets-এ প্রয়োজনীয় কি-গুলো যুক্ত করুন।")
+    st.stop()
 
 CLIENT_CONFIG = {
     "web": {
@@ -93,7 +97,10 @@ quality = st.sidebar.slider(
 
 def generate_blogger_html(image_bytes, user_api_key):
   try:
-    genai.configure(api_key=user_api_key.strip())
+    # লোকাল জেমিনি কনফিগারেশন যাতে ব্লগার ওআউথের সাথে কনফ্লিক্ট না করে
+    genai_local = genai
+    genai_local.configure(api_key=user_api_key.strip())
+    
     image_pil = Image.open(io.BytesIO(image_bytes))
 
     prompt = (
@@ -103,7 +110,7 @@ def generate_blogger_html(image_bytes, user_api_key):
         " Blogger post editor."
     )
 
-    model = genai.GenerativeModel("gemini-3.6-flash")
+    model = genai_local.GenerativeModel("gemini-3.6-flash")
     response = model.generate_content([prompt, image_pil])
 
     if response and response.text:
