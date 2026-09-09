@@ -25,20 +25,51 @@ quality = st.sidebar.slider(
 
 def generate_seo_content(image_bytes, user_api_key):
   try:
-    # Official Gemini SDK Configuration
     genai.configure(api_key=user_api_key.strip())
-
-    # Flash model selection
-    model = genai.GenerativeModel("gemini-1.5-flash")
-
+    image_pil = Image.open(io.BytesIO(image_bytes))
     prompt = (
         "Analyze this image and generate SEO Title, Alt Text, and Description in"
         " Bengali. Format output clearly with headers."
     )
 
-    image_pil = Image.open(io.BytesIO(image_bytes))
-    response = model.generate_content([prompt, image_pil])
-    return response.text
+    # Active model list
+    models_to_try = [
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash-001",
+        "gemini-1.5-flash-002",
+        "gemini-pro-vision",
+    ]
+
+    last_exception = None
+
+    # Try list of models automatically
+    for model_name in models_to_try:
+      try:
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content([prompt, image_pil])
+        if response and response.text:
+          return response.text
+      except Exception as e:
+        last_exception = e
+        continue
+
+    # Fallback to dynamic model discovery if static names fail
+    for m in genai.list_models():
+      if "generateContent" in m.supported_generation_methods and (
+          "flash" in m.name or "vision" in m.name
+      ):
+        try:
+          model = genai.GenerativeModel(m.name)
+          response = model.generate_content([prompt, image_pil])
+          if response and response.text:
+            return response.text
+        except Exception as e:
+          last_exception = e
+          continue
+
+    return f"Error: {str(last_exception)}"
   except Exception as e:
     return f"Error: {str(e)}"
 
