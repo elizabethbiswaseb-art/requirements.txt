@@ -1,132 +1,119 @@
+import base64
 import io
-import os
-import PIL.Image
-import google.generativeai as genai
+import requests
+from PIL import Image
 import streamlit as st
 
-# Page Configuration
 st.set_page_config(
-    page_title="Ultra SEO Image Converter & Content AI",
-    page_icon="🚀",
-    layout="wide",
+    page_title="Ultra SEO Image Generator", page_icon="🚀", layout="wide"
 )
 
 st.title("🚀 Ultra SEO Image & AI Content Generator")
 st.caption(
-    "ওয়েব ব্লগিংয়ের জন্য লাইফটাইম ফ্রি WebP ইমেজ কমপ্রেশন এবং SEO কন্টেন্ট জেনারেটর ড্যাশবোর্ড।"
+    "ওয়েব ব্লগিংয়ের জন্য লাইফটাইম ফ্রি WebP ইমেজ কমপ্রেশন এবং SEO কন্টেন্ট জেনারেটর ড্যাশবোর্ড।"
 )
 
-# Sidebar Settings
+# Sidebar Configuration
 st.sidebar.header("⚙️ কনফিগারেশন")
+secret_key = st.secrets.get("GEMINI_API_KEY", "")
 api_key = st.sidebar.text_input(
-    "Gemini API Key দিন:",
-    type="password",
-    value=os.environ.get("GEMINI_API_KEY", ""),
-    help="Google AI Studio থেকে প্রাপ্ত ফ্রি API Key-টি এখানে দিন।",
+    "Gemini API Key / Access Token দিন:", value=secret_key, type="password"
 )
-
 quality = st.sidebar.slider(
-    "WebP কোয়ালিটি (Quality %):", min_value=50, max_value=100, value=80
+    "WebP কোয়ালিটি (Quality %):", min_value=10, max_value=100, value=80
 )
 
-# File Upload
+
+def generate_seo_content(image_bytes, key_or_token):
+  encoded_image = base64.b64encode(image_bytes).decode("utf-8")
+
+  prompt = (
+      "Analyze this image and generate SEO Title, Alt Text, and Description in"
+      " Bengali. Format output clearly with headers."
+  )
+
+  payload = {
+      "contents": [{
+          "parts": [
+              {"text": prompt},
+              {
+                  "inline_data": {
+                      "mime_type": "image/webp",
+                      "data": encoded_image,
+                  }
+              },
+          ]
+      }]
+  }
+
+  # If code starts with AQ, send as Bearer Token
+  if key_or_token.startswith("AQ"):
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {key_or_token}",
+    }
+    response = requests.post(url, headers=headers, json=payload)
+  else:
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key_or_token}"
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(url, headers=headers, json=payload)
+
+  if response.status_code == 200:
+    res_data = response.json()
+    try:
+      return res_data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError):
+      return "AI কন্টেন্ট প্রসেস করতে পারেনি।"
+  else:
+    return f"Error {response.status_code}: {response.text}"
+
+
+# Main Upload Logic
 uploaded_file = st.file_uploader(
-    "📸 আপনার ছবি আপলোড করুন (JPG, PNG, JPEG):", type=["jpg", "jpeg", "png"]
+    "📷 আপনার ছবি আপলোড করুন (JPG, PNG, JPEG):", type=["jpg", "jpeg", "png"]
 )
 
 if uploaded_file is not None:
-    col1, col2 = st.columns(2)
+  image = Image.open(uploaded_file)
 
-    original_bytes = uploaded_file.getvalue()
-    original_size_kb = len(original_bytes) / 1024
+  # Convert to WebP
+  buffer = io.BytesIO()
+  image.save(buffer, format="WEBP", quality=quality)
+  webp_bytes = buffer.getvalue()
 
-    image = PIL.Image.open(io.BytesIO(original_bytes))
-    if image.mode in ("RGBA", "P"):
-        image = image.convert("RGB")
+  orig_size = len(uploaded_file.getvalue()) / 1024
+  new_size = len(webp_bytes) / 1024
+  savings = ((orig_size - new_size) / orig_size) * 100
 
-    output_buffer = io.BytesIO()
-    image.save(output_buffer, format="WEBP", quality=quality)
-    webp_bytes = output_buffer.getvalue()
-    webp_size_kb = len(webp_bytes) / 1024
-    savings = ((original_size_kb - webp_size_kb) / original_size_kb) * 100
+  col1, col2 = st.columns(2)
+  with col1:
+    st.image(image, caption="মূল ছবি", use_container_width=True)
+    st.write(f"মূল সাইজ: **{orig_size:.1f} KB**")
 
-    with col1:
-        st.subheader("🖼️ মূল ছবি (Original)")
-        st.image(image, use_container_width=True)
-        st.metric("ফাইল সাইজ", f"{original_size_kb:.1f} KB")
+  with col2:
+    st.image(webp_bytes, caption="WebP ছবি", use_container_width=True)
+    st.write(
+        f"নতুন সাইজ: **{new_size:.1f} KB** (সাশ্রয়: **{savings:.1f}%**)"
+    )
+    st.download_button(
+        "📥 WebP ছবি ডাউনলোড করুন",
+        data=webp_bytes,
+        file_name="optimized.webp",
+        mime="image/webp",
+    )
 
-    with col2:
-        st.subheader("⚡ অপটিমাইজড WebP")
-        st.image(
-            output_buffer.getvalue(),
-            caption=f"WebP Quality {quality}%",
-            use_container_width=True,
-        )
-        st.metric(
-            "নতুন সাইজ",
-            f"{webp_size_kb:.1f} KB",
-            delta=f"-{savings:.1f}% সাশ্রয়",
-            delta_color="normal",
-        )
+  st.markdown("---")
+  st.subheader("🤖 AI SEO কন্টেন্ট জেনারেটর")
 
-        webp_filename = os.path.splitext(uploaded_file.name)[0] + ".webp"
-        st.download_button(
-            label="📥 WebP ছবি ডাউনলোড করুন",
-            data=webp_bytes,
-            file_name=webp_filename,
-            mime="image/webp",
-            use_container_width=True,
-        )
-
-    st.divider()
-
-    st.subheader("🤖 AI SEO কন্টেন্ট জেনারেটর")
-
+  if st.button("✨ SEO Title, Alt Text ও Description তৈরি করুন"):
     if not api_key:
-        st.warning("⚠️ কন্টেন্ট জেনারেট করতে বামপাশের সাইডবারে Gemini API Key দিন।")
+      st.error("দয়া করে সাইডবারে আপনার Key/Token বসান!")
     else:
-        if st.button(
-            "✨ SEO Title, Alt Text ও Description তৈরি করুন",
-            type="primary",
-            use_container_width=True,
-        ):
-            with st.spinner("AI ছবি বিশ্লেষণ করছে..."):
-                try:
-                    genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel("gemini-1.5-flash")
-
-                    prompt = """
-                    Analyze this graphic design/image and provide:
-                    1. Image Title (SEO optimized, max 8-10 words)
-                    2. Alt Text (SEO Friendly description for HTML alt tag)
-                    3. Description (Detailed engaging blog description in English, around 100-150 words)
-
-                    Output format strictly as:
-                    TITLE: [Title]
-                    ALT: [Alt Text]
-                    DESCRIPTION: [Description]
-                    """
-
-                    response = model.generate_content([prompt, image])
-                    res_text = response.text
-
-                    title_val, alt_val, desc_val = "", "", ""
-                    for line in res_text.split("\n"):
-                        if line.startswith("TITLE:"):
-                            title_val = line.replace("TITLE:", "").strip()
-                        elif line.startswith("ALT:"):
-                            alt_val = line.replace("ALT:", "").strip()
-                        elif line.startswith("DESCRIPTION:"):
-                            desc_val = line.replace("DESCRIPTION:", "").strip()
-
-                    if not title_val:
-                        desc_val = res_text
-
-                    st.success("✅ SEO কন্টেন্ট সফলভাবে জেনারেট হয়েছে!")
-
-                    st.text_input("📌 Image Title:", value=title_val)
-                    st.text_input("🏷️ Alt Text (SEO Friendly):", value=alt_val)
-                    st.text_area("📝 Blog Description:", value=desc_val, height=150)
-
-                except Exception as e:
-                    st.error(f"❌ এরর এসেছে: {e}")
+      with st.spinner("AI কন্টেন্ট তৈরি করছে..."):
+        result = generate_seo_content(webp_bytes, api_key)
+        if result.startswith("Error"):
+          st.error(result)
+        else:
+          st.success("সফলভাবে তৈরি হয়েছে!")
+          st.markdown(result)
