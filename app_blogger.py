@@ -37,7 +37,7 @@ def generate_blogger_html(image_bytes, user_api_key):
     )
 
     # সরাসরি লেটেস্ট সচল মডেল ব্যবহার করা হলো
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    model = genai.GenerativeModel("gemini-3.6-flash")
     response = model.generate_content([prompt, image_pil])
 
     if response and response.text:
