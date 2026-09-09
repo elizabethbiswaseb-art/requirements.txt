@@ -36,7 +36,6 @@ def generate_blogger_html(image_bytes, user_api_key):
         " Blogger post editor."
     )
 
-    # সঠিক ও সচল মডেল ব্যবহার করা হলো
     model = genai.GenerativeModel("gemini-1.5-flash")
     response = model.generate_content([prompt, image_pil])
 
