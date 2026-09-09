@@ -1,8 +1,6 @@
 import io
-import json
-import requests
-from PIL import Image
 import streamlit as st
+from PIL import Image
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
@@ -59,92 +57,53 @@ def authenticate_blogger():
             }
             st.success("Successfully authenticated with Blogger!")
     except Exception as e:
-        st.error(f"Auth Error: {e}")
-
-def publish_post(title, content, is_draft=True):
-    if 'blogger_credentials' not in st.session_state:
-        st.warning("Please authenticate first using the authorization link above.")
-        return
-    
-    try:
-        credentials = Credentials(**st.session_state['blogger_credentials'])
-        service = build('blogger', 'v3', credentials=credentials)
+    def publish_post(title, content, is_draft=True):
+        if 'blogger_credentials' not in st.session_state:
+            st.warning("Please authenticate first using the authorization link above.")
+            return
         
-        body = {
-            'title': title,
-            'content': content,
-            'isDraft': is_draft
-        }
-        
-        posts = service.posts()
-        posts.insert(blogId=BLOG_ID, body=body, isDraft=is_draft).execute()
-        if is_draft:
-            st.success("Post successfully saved as Draft in Blogger!")
-        else:
-            st.success("Post successfully Published to Blogger!")
-    except Exception as e:
-        st.error(f"Publishing Error: {e}")
+        try:
+            credentials = Credentials(**st.session_state['blogger_credentials'])
+            service = build('blogger', 'v3', credentials=credentials)
+            
+            body = {
+                'title': title,
+                'content': content,
+                'isDraft': is_draft
+            }
+            
+            posts = service.posts()
+            posts.insert(blogId=BLOG_ID, body=body, isDraft=is_draft).execute()
+            if is_draft:
+                st.success("Post successfully saved as Draft in Blogger!")
+            else:
+                st.success("Post successfully Published to Blogger!")
+        except Exception as e:
+            st.error(f"Publishing Error: {e}")
 
 # Sidebar Configuration
 st.sidebar.header("⚙️ কনফিগারেশন")
-secret_key = st.secrets.get("GEMINI_API_KEY", "")
-api_key = st.sidebar.text_input(
-    "Gemini API Key দিন:", value=secret_key, type="password"
-)
 quality = st.sidebar.slider(
     "WebP কোয়ালিটি (Quality %):", min_value=10, max_value=100, value=80
 )
 
 
-def generate_html_pure_rest(image_bytes, user_api_key):
-  """সরাসরি HTTP রিকোয়েস্ট ব্যবহার করে জেমিনি কল করা, যাতে কোনো ওআউথ বা লাইব্রেরি কনফ্লিক্ট না থাকে"""
-  try:
-    import base64
-    encoded_image = base64.b64encode(image_bytes).decode("utf-8")
-    
-    # gemini-2.5-flash অথবা gemini-1.5-flash মডেল ব্যবহার করা নিরাপদ
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={user_api_key.strip()}"
-    
-    headers = {
-        "Content-Type": "application/json"
-    }
-    
-    prompt = (
-        "Analyze this image and generate an SEO Title, Alt Text, and a detailed"
-        " SEO Description in English. Format the output cleanly using HTML tags"
-        " like <h2>, <p>, and <strong> so it can be directly pasted into a"
-        " Blogger post editor."
-    )
-    
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": prompt},
-                    {
-                        "inline_data": {
-                            "mime_type": "image/webp",
-                            "data": encoded_image
-                        }
-                    }
-                ]
-            }
-        ]
-    }
-    
-    response = requests.post(url, headers=headers, data=json.dumps(payload))
-    
-    if response.status_code == 200:
-      res_json = response.json()
-      try:
-        return res_json["candidates"][0]["content"]["parts"][0]["text"]
-      except (KeyError, IndexError):
-        return f"Error: Invalid response structure: {res_json}"
-    else:
-      return f"Error ({response.status_code}): {response.text}"
-
-  except Exception as e:
-    return f"Error: {str(e)}"
+def generate_local_seo_html(file_name):
+  """কোনো এপিআই ঝামেলা ছাড়াই লোকাল লজিক দিয়ে এসইও ফ্রেন্ডলি HTML টেমপ্লেট তৈরি করা"""
+  clean_name = file_name.rsplit('.', 1)[0].replace('-', ' ').replace('_', ' ').title()
+  
+  html_output = f"""
+  <h2>{clean_name} - Complete Overview & Guide</h2>
+  <p>Welcome to our detailed guide about <strong>{clean_name}</strong>. This post covers all essential aspects, features, and optimization details you need to know.</p>
+  <h3>Key Highlights</h3>
+  <ul>
+      <li>High-quality optimized WebP visual format.</li>
+      <li>SEO friendly structure tailored for Blogger search rankings.</li>
+      <li>Fast loading performance and clean layout.</li>
+  </ul>
+  <p>If you have any questions regarding {clean_name}, feel free to drop a comment below!</p>
+  """
+  return clean_name, html_output.strip()
 
 
 # Main Upload Logic
@@ -154,6 +113,7 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
   image = Image.open(uploaded_file)
+  file_name = uploaded_file.name
 
   # Convert to WebP
   buffer = io.BytesIO()
@@ -177,16 +137,11 @@ if uploaded_file is not None:
   st.subheader("🤖 ব্লগার এসইও কন্টেন্ট ও HTML জেনারেটর")
 
   if st.button("✨ ব্লগ পোস্টের জন্য HTML কন্টেন্ট তৈরি করুন"):
-    if not api_key:
-      st.error("দয়া করে সাইডবারে আপনার Gemini API Key বসান!")
-    else:
-      with st.spinner("ব্লগার উপযোগী এসইও কন্টেন্ট তৈরি হচ্ছে..."):
-        result = generate_html_pure_rest(webp_bytes, api_key)
-        if result.startswith("Error"):
-          st.error(result)
-        else:
-          st.session_state["blogger_html"] = result
-          st.success("সফলভাবে তৈরি হয়েছে!")
+    with st.spinner("এসইও ফ্রেন্ডলি HTML কন্টেন্ট তৈরি হচ্ছে..."):
+      default_title, generated_html = generate_local_seo_html(file_name)
+      st.session_state["blogger_html"] = generated_html
+      st.session_state["default_title"] = default_title
+      st.success("সফলভাবে তৈরি হয়েছে!")
 
   if "blogger_html" in st.session_state:
     st.subheader("👁️ প্রিভিউ (Preview):")
@@ -194,9 +149,9 @@ if uploaded_file is not None:
 
     st.markdown("---")
     st.subheader("✍️ Review, Edit & Publish to Blogger")
-    st.info("এআই-এর কন্টেন্টে কোনো ভুল থাকলে নিচে ম্যানুয়ালি এডিট করে সরাসরি ব্লগে পাবলিশ বা ড্রাফট করতে পারেন:")
+    st.info("এআই বা কন্টেন্টে কোনো পরিবর্তন করতে চাইলে নিচে ম্যানুয়ালি এডিট করে সরাসরি ব্লগে পাবলিশ বা ড্রাফট করতে পারেন:")
 
-    editable_title = st.text_input("Post Title", value="SEO Optimized Post from Image")
+    editable_title = st.text_input("Post Title", value=st.session_state.get("default_title", "SEO Optimized Post"))
     editable_content = st.text_area("Post HTML Content (Edit if needed)", value=st.session_state["blogger_html"], height=300)
 
     authenticate_blogger()
