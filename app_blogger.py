@@ -36,24 +36,25 @@ def generate_blogger_html(image_bytes, user_api_key):
         " Blogger post editor."
     )
 
-    models_to_try = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
-    ]
+    # সচল মডেল স্বয়ংক্রিয়ভাবে খুঁজে বের করার কোড
+    available_model = None
+    for m in genai.list_models():
+      if "generateContent" in m.supported_generation_methods:
+        if "flash" in m.name or "pro" in m.name:
+          available_model = m.name
+          break
 
-    last_error = ""
-    for model_name in models_to_try:
-      try:
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content([prompt, image_pil])
-        if response and response.text:
-          return response.text
-      except Exception as err:
-        last_error = str(err)
-        continue
+    if not available_model:
+      available_model = "models/gemini-1.5-flash"
 
-    return f"Error: Could not generate content. Details: {last_error}"
+    model = genai.GenerativeModel(available_model)
+    response = model.generate_content([prompt, image_pil])
+
+    if response and response.text:
+      return response.text
+    else:
+      return "Error: Empty response from Gemini API."
+
   except Exception as e:
     return f"Error: {str(e)}"
 
