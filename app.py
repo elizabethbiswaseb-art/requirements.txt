@@ -1,6 +1,5 @@
-import base64
 import io
-import requests
+import google.generativeai as genai
 from PIL import Image
 import streamlit as st
 
@@ -25,64 +24,23 @@ quality = st.sidebar.slider(
 
 
 def generate_seo_content(image_bytes, user_api_key):
-  clean_key = user_api_key.strip()
-  encoded_image = base64.b64encode(image_bytes).decode("utf-8")
+  try:
+    # Official Gemini SDK Configuration
+    genai.configure(api_key=user_api_key.strip())
 
-  prompt = (
-      "Analyze this image and generate SEO Title, Alt Text, and Description in"
-      " Bengali. Format output clearly with headers."
-  )
+    # Flash model selection
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
-  payload = {
-      "contents": [{
-          "parts": [
-              {"text": prompt},
-              {
-                  "inline_data": {
-                      "mime_type": "image/webp",
-                      "data": encoded_image,
-                  }
-              },
-          ]
-      }]
-  }
+    prompt = (
+        "Analyze this image and generate SEO Title, Alt Text, and Description in"
+        " Bengali. Format output clearly with headers."
+    )
 
-  # List of current active models to prevent 404 errors automatically
-  models_to_try = [
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash-latest",
-      "gemini-1.5-flash",
-  ]
-
-  headers = {"Content-Type": "application/json", "x-goog-api-key": clean_key}
-
-  last_error = ""
-
-  for model in models_to_try:
-    # Try Header Authentication first
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    response = requests.post(url, headers=headers, json=payload)
-
-    # If Header fails, fallback to Query Parameter
-    if response.status_code != 200:
-      url_param = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={clean_key}"
-      response = requests.post(
-          url_param,
-          headers={"Content-Type": "application/json"},
-          json=payload,
-      )
-
-    if response.status_code == 200:
-      res_data = response.json()
-      try:
-        return res_data["candidates"][0]["content"]["parts"][0]["text"]
-      except (KeyError, IndexError):
-        return "AI কন্টেন্ট প্রসেস করতে পারেনি।"
-    else:
-      last_error = f"Error {response.status_code}: {response.text}"
-
-  return last_error
+    image_pil = Image.open(io.BytesIO(image_bytes))
+    response = model.generate_content([prompt, image_pil])
+    return response.text
+  except Exception as e:
+    return f"Error: {str(e)}"
 
 
 # Main Upload Logic
