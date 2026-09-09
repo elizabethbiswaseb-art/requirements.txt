@@ -25,6 +25,7 @@ quality = st.sidebar.slider(
 
 
 def generate_seo_content(image_bytes, key_or_token):
+  key_or_token = key_or_token.strip()
   encoded_image = base64.b64encode(image_bytes).decode("utf-8")
 
   prompt = (
@@ -46,8 +47,8 @@ def generate_seo_content(image_bytes, key_or_token):
       }]
   }
 
-  # If code starts with AQ, send as Bearer Token
-  if key_or_token.startswith("AQ"):
+  # If not standard AIzaSy API key, force OAuth Bearer token mode
+  if not key_or_token.startswith("AIzaSy"):
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     headers = {
         "Content-Type": "application/json",
